@@ -1,3 +1,9 @@
+const express = require('express');
+const router = express.Router();
+const assetController = require('../controllers/assetController');
+const authMiddleware = require('../middleware/authMiddleware'); 
+const checkRole = require('../middleware/roleMiddleware');
+
 /**
  * @swagger
  * tags:
@@ -9,7 +15,7 @@
  * @swagger
  * /api/assets:
  *   post:
- *     summary: Register a new asset in the system
+ *     summary: Create a new asset (Admin Only)
  *     tags: [Assets]
  *     security:
  *       - bearerAuth: []
@@ -19,74 +25,104 @@
  *         application/json:
  *           schema:
  *             type: object
- *             required:
- *               - asset_tag
- *               - serial_number
  *             properties:
  *               asset_tag:
  *                 type: string
- *                 example: LAP-001
+ *                 example: LAP-NEW-001
  *               serial_number:
  *                 type: string
- *                 example: SN-998877
+ *                 example: SN-12345
  *               status:
  *                 type: string
  *                 example: Available
  *               purchase_date:
  *                 type: string
- *                 format: date
- *                 example: "2023-10-25"
+ *                 example: "2023-11-20"
  *               category_id:
  *                 type: string
  *                 format: uuid
- *                 description: Foreign Key to AssetCategory
  *               vendor_id:
  *                 type: string
  *                 format: uuid
- *                 description: Foreign Key to Vendor
  *               location_id:
  *                 type: string
  *                 format: uuid
- *                 description: Foreign Key to Location
  *               dept_id:
  *                 type: string
  *                 format: uuid
- *                 description: Foreign Key to Department
  *     responses:
  *       201:
- *         description: Asset created successfully
- *       401:
- *         description: Unauthorized (Invalid or missing token)
- *       500:
- *         description: Internal Server Error
- * 
+ *         description: Asset created
  *   get:
- *     summary: Get a list of all assets
+ *     summary: Get all assets
  *     tags: [Assets]
  *     security:
  *       - bearerAuth: []
  *     responses:
  *       200:
- *         description: A JSON array of assets
- *       401:
- *         description: Unauthorized
- *       500:
- *         description: Server Error
+ *         description: List of assets
  */
-
-const express = require('express');
-const router = express.Router();
-const assetController = require('../controllers/assetController');
-const authMiddleware = require('../middleware/authMiddleware'); // Standard variable name
-
-// @route   POST /api/assets
-// @desc    Create a new asset record
-// @access  Private (Requires JWT Token)
-router.post('/', authMiddleware, assetController.createAsset);
-
-// @route   GET /api/assets
-// @desc    Retrieve all asset records
-// @access  Private (Requires JWT Token)
+router.post('/', authMiddleware, checkRole('Admin'), assetController.createAsset);
 router.get('/', authMiddleware, assetController.getAllAssets);
+
+/**
+ * @swagger
+ * /api/assets/{id}:
+ *   put:
+ *     summary: Update an asset (Admin Only)
+ *     tags: [Assets]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Asset ID
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               asset_tag:
+ *                 type: string
+ *               serial_number:
+ *                 type: string
+ *               status:
+ *                 type: string
+ *               purchase_date:
+ *                 type: string
+ *               category_id:
+ *                 type: string
+ *               vendor_id:
+ *                 type: string
+ *               location_id:
+ *                 type: string
+ *               dept_id:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Asset updated
+ *   delete:
+ *     summary: Delete an asset (Admin Only)
+ *     tags: [Assets]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Asset ID
+ *     responses:
+ *       200:
+ *         description: Asset deleted
+ */
+router.put('/:id', authMiddleware, checkRole('Admin'), assetController.updateAsset);
+router.delete('/:id', authMiddleware, checkRole('Admin'), assetController.deleteAsset);
 
 module.exports = router;

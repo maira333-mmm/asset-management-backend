@@ -3,6 +3,10 @@ const cors = require('cors');
 const pool = require('./config/db');
 const swaggerUi = require('swagger-ui-express');
 const swaggerSpec = require('./swagger');
+const departmentRoutes = require('./routes/departments'); 
+const vendorRoutes = require('./routes/vendors');
+const categoryRoutes = require('./routes/categories');
+const locationRoutes = require('./routes/locations');
 require('dotenv').config();
 
 const app = express();
@@ -21,6 +25,10 @@ const assetRoutes = require('./routes/assets');
 // --- Use Routes ---
 app.use('/api/auth', authRoutes);
 app.use('/api/assets', assetRoutes);
+app.use('/api/departments', departmentRoutes); 
+app.use('/api/vendors', vendorRoutes);
+app.use('/api/categories', categoryRoutes);
+app.use('/api/locations', locationRoutes);
 
 // --- Test Route for Database Connection ---
 app.get('/', async (req, res) => {
