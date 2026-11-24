@@ -7,6 +7,8 @@ const departmentRoutes = require('./routes/departments');
 const vendorRoutes = require('./routes/vendors');
 const categoryRoutes = require('./routes/categories');
 const locationRoutes = require('./routes/locations');
+const employeeRoutes = require('./routes/employees'); 
+
 require('dotenv').config();
 
 const app = express();
@@ -29,6 +31,7 @@ app.use('/api/departments', departmentRoutes);
 app.use('/api/vendors', vendorRoutes);
 app.use('/api/categories', categoryRoutes);
 app.use('/api/locations', locationRoutes);
+app.use('/api/employees', employeeRoutes);
 
 // --- Test Route for Database Connection ---
 app.get('/', async (req, res) => {

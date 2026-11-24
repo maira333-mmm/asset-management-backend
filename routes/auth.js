@@ -72,12 +72,12 @@ router.post('/signup',
         return res.status(400).json({ message: "User with this email already exists" });
       }
 
-      // Hash password and insert
+      // Hash password and insert (default status = Active)
       const salt = await bcrypt.genSalt(10);
       const hashedPassword = await bcrypt.hash(password, salt);
       const newUser = await pool.query(
-        'INSERT INTO users (email, password_hash) VALUES ($1, $2) RETURNING user_id, email',
-        [email, hashedPassword]
+        'INSERT INTO users (email, password_hash, status) VALUES ($1, $2, $3) RETURNING user_id, email, status',
+        [email, hashedPassword, 'Active']
       );
 
       res.status(201).json({ message: "User registered successfully", user: newUser.rows[0] });
@@ -114,6 +114,8 @@ router.post('/signup',
  *         description: Logged in successfully, returns JWT token
  *       400:
  *         description: Invalid credentials
+ *       403:
+ *         description: Account suspended
  *       500:
  *         description: Internal Server Error
  */
@@ -129,6 +131,11 @@ router.post('/login', async (req, res) => {
 
     const validPassword = await bcrypt.compare(password, user.rows[0].password_hash);
     if (!validPassword) return res.status(400).json({ message: "Invalid credentials" });
+
+    // ✅ Suspended account check
+    if (user.rows[0].status === 'Suspended') {
+      return res.status(403).json({ message: "Your account has been suspended. Contact Admin." });
+    }
 
     const token = jwt.sign(
       { user_id: user.rows[0].user_id, email: user.rows[0].email },
