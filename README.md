@@ -8,7 +8,7 @@
 
 <br><br>
 
-A comprehensive **Backend API system** for managing company assets, built with **Node.js, Express, PostgreSQL, and Docker**. Features robust JWT Authentication, Role-Based Access Control (RBAC), and full CRUD operations for Master Data and Company Assets.
+A comprehensive **Backend API system** for managing company assets, built with **Node.js, Express, PostgreSQL, and Docker**. Features robust JWT Authentication, Role-Based Access Control (RBAC), and full CRUD operations with strict departmental data isolation.
 
 <br>
 
@@ -35,16 +35,17 @@ A comprehensive **Backend API system** for managing company assets, built with *
 
 # 📋 Table of Contents
 
-- 📖 About
-- 🚀 Tech Stack
-- 🛠️ Prerequisites
-- 📦 How to Run the Project
-- 🗄️ Database Setup
-- 🔐 Authentication & Roles
-- 📌 API Endpoints
-- 🛑 Stopping the Application
-- 📝 Next Steps (In Progress)
-- 📬 Contact
+- [📖 About](#-about)
+- [🚀 Tech Stack](#-tech-stack)
+- [🛠️ Prerequisites](#️-prerequisites)
+- [📦 How to Run the Project](#-how-to-run-the-project)
+- [🗄️ Database Setup](#️-database-setup)
+- [🔐 Authentication & Roles (RBAC)](#-authentication--roles-rbac)
+- [🔄 System Workflows](#-system-workflows)
+- [📌 API Endpoints](#-api-endpoints)
+- [🛑 Stopping the Application](#-stopping-the-application)
+- [📝 Next Steps (In Progress)](#-next-steps-in-progress)
+- [📬 Contact](#-contact)
 
 ---
 
@@ -54,11 +55,12 @@ The **Asset Management System - Backend API** is a complete enterprise-grade bac
 
 ## 🎯 Key Highlights
 
-- ✅ **JWT Authentication** - Secure token-based session management
-- ✅ **Role-Based Access Control (RBAC)** - Granular permissions for Admin, Manager, and Employee roles
-- ✅ **Full CRUD Operations** - Comprehensive management for Master Data and Company Assets
-- ✅ **Dockerized Environment** - Seamless one-command setup with PostgreSQL and Express containers
-- ✅ **Interactive Documentation** - Pre-configured Swagger UI for instant API testing
+- ✅ **JWT Authentication** - Secure token-based session management.
+- ✅ **Role-Based Access Control (RBAC)** - Granular permissions for Admin, Manager, and Employee roles.
+- ✅ **Departmental Data Isolation** - Managers and Employees only see data relevant to their specific department.
+- ✅ **Full CRUD Operations** - Comprehensive management for Master Data and Company Assets.
+- ✅ **Dockerized Environment** - Seamless one-command setup with PostgreSQL and Express containers.
+- ✅ **Interactive Documentation** - Pre-configured Swagger UI for instant API testing.
 
 ---
 
@@ -88,12 +90,10 @@ Before running this project locally, make sure you have installed:
 
 ### 1. Clone the repository
 ```bash
-git clone [https://github.com/maira333-mmm/asset-management-backend.git](https://github.com/maira333-mmm/asset-management-backend.git)
-cd asset-management-backend
-
-
+git clone https://github.com/maira333-mmm/asset-management-backend.git
+cd asset-management-backend\
 2. Create the .env file
-Create a new file named .env in the root directory and paste the following configuration
+Create a new file named .env in the root directory and paste the following configuration:
 
 PORT=5000
 DB_USER=postgres
@@ -103,40 +103,102 @@ DB_PORT=5432
 DB_NAME=asset_management_db
 JWT_SECRET=super_secret_key_123
 
-
 3. Start the application with Docker
-
 docker-compose up --build -d
 
-(Note: The -d flag runs containers in the background. Remove -d if you wish to view real-time logs in your terminal).4. Access the ServicesAPI Base URL: http://localhost:5000Swagger Documentation: http://localhost:5000/api-docs🗄️ Database SetupThe PostgreSQL database and all 22 foundational tables are automatically provisioned when you launch Docker.The automated initialization script is located at db/init.sql and executes seamlessly on the first container startup.🔐 Authentication & RolesThe system uses JWT Authentication. There are 3 distinct roles defined in the architecture:RolePermissions & Access👑 AdminCan manage Master Data (Departments, Vendors, Categories, Locations) and perform full CRUD on Assets.🛡️ Manager (Upcoming)Can view assets, approve requests, and assign assets.👤 Employee (Upcoming)Can request assets and view their assigned assets.🧪 Default Admin Credentials (For Testing)Email: maira@techavenue.comPassword: Admin@123💡 Tip for Swagger Testing: To test protected endpoints in Swagger UI, first call the POST /api/auth/login endpoint, copy the returned token, click the "Authorize" button at the top right of Swagger, and paste your token.📌 API Endpoints1. Authentication (/api/auth)MethodEndpointDescriptionPOST/api/auth/signupRegister a new userPOST/api/auth/loginLogin and retrieve JWT token2. Master Data — Admin Only (/api)MethodEndpointDescriptionPOST / GET/api/departmentsManage company departmentsPOST / GET/api/vendorsManage asset vendors/suppliersPOST / GET/api/categoriesManage asset categoriesPOST / GET/api/locationsManage office locations3. Assets Management (/api/assets)MethodEndpointDescriptionAccessPOST/api/assetsCreate a new asset recordAdmin OnlyGET/api/assetsRetrieve all registered assetsAuthenticated UsersPUT/api/assets/:idUpdate an existing assetAdmin OnlyDELETE/api/assets/:idDelete an asset recordAdmin Only🛑 Stopping the ApplicationTo safely stop and tear down the Docker containers, run:
+4. Access the Services
+API Base URL: http://localhost:5000
 
+Swagger Documentation: http://localhost:5000/api-docs
+
+🗄️ Database Setup
+The PostgreSQL database and all 22 foundational tables are automatically provisioned when you launch Docker. The automated initialization script is located at db/init.sql and executes seamlessly on the first container startup.
+
+🔐 Authentication & Roles (RBAC)
+The system uses JWT Authentication. There are 3 distinct roles defined in the architecture with strict access control:
+
+👑 Admin
+Access Level: Full System Access.
+
+Responsibilities: Can manage Master Data (Departments, Vendors, Categories, Locations), perform full CRUD on Assets, and create/manage both Managers and Employees.
+
+Global View: Can view assets and employees across all departments.
+
+🛡️ Manager
+Access Level: Department-Specific Access.
+
+Responsibilities: Can view employees only within their own department. Can assign available assets to their team members and approve/reject asset requests from their department.
+
+Restrictions: Cannot create new assets, manage master data, or view other departments' data.
+
+👤 Employee
+Access Level: Personal Access.
+
+Responsibilities: Can log in to view their own assigned assets. Can create asset requests for their department manager to approve.
+
+Restrictions: Cannot assign assets or view company-wide data.
+
+🔄 System Workflows
+Admin Setup: Admin logs in, creates Departments, Categories, Vendors, and Locations. Admin then creates Managers and assigns them to specific departments.
+
+Asset Creation: Admin registers new assets and assigns them to a specific department or keeps them in general inventory.
+
+Manager Assignment: A Manager logs in and sees only their department's assets and employees. They select an employee and assign an available asset to them.
+
+Employee Request: An Employee logs in, requests an asset (e.g., a laptop). The request goes to their specific Manager.
+
+Manager Approval: The Manager reviews the request, approves it, and assigns an available asset from their department pool.
+
+📌 API Endpoints
+1. Authentication (/api/auth)
+Method	Endpoint	Description
+POST	/api/auth/signup	Register a new user
+POST	/api/auth/login	Login and retrieve JWT token
+2. Master Data — Admin Only (/api)
+Method	Endpoint	Description
+POST / GET	/api/departments	Manage company departments
+POST / GET	/api/vendors	Manage asset vendors/suppliers
+POST / GET	/api/categories	Manage asset categories
+POST / GET	/api/locations	Manage office locations
+3. Employees Management (/api/employees)
+Method	Endpoint	Description	Access
+POST	/api/employees	Create a new employee	Admin
+GET	/api/employees	Get all employees	Admin (All) / Manager (Dept Only)
+PUT	/api/employees/:id	Update employee details	Admin
+DELETE	/api/employees/:id	Delete an employee	Admin
+4. Assets Management (/api/assets)
+Method	Endpoint	Description	Access
+POST	/api/assets	Create a new asset record	Admin Only
+GET	/api/assets	Retrieve all registered assets	Admin (All) / Manager (Dept)
+PUT	/api/assets/:id	Update an existing asset	Admin Only
+DELETE	/api/assets/:id	Delete an asset record	Admin Only
+5. Assignments & Requests (/api/assignments, /api/requests)
+Method	Endpoint	Description	Access
+GET	/api/assignments/available-assets	Get available assets in Manager's dept	Manager
+POST	/api/assignments/assign	Assign an asset to an employee	Manager
+GET	/api/assignments/my-assets	View assigned assets	Employee
+POST	/api/requests	Create a new asset request	Employee
+GET	/api/requests/pending	View pending requests for team	Manager
+PUT	/api/requests/:id/status	Approve/Reject a request	Manager
+🧪 Default Admin Credentials (For Testing)
+Email: maira@techavenue.com
+
+Password: Admin@123
+
+💡 Tip for Swagger Testing: To test protected endpoints in Swagger UI, first call the POST /api/auth/login endpoint, copy the returned token, click the "Authorize" button at the top right of Swagger, and paste your token.
+
+🛑 Stopping the Application
+To safely stop and tear down the Docker containers, run:
+
+bash
 docker-compose down
-
 📝 Next Steps (In Progress)
-👥 Employee Management Module
-
-📋 Asset Request & Approval Workflow
-
-🔄 Asset Assignment & Return Module
-
-👩‍💻 Maira Alam
-
-
-❤️ Built with Node.js, Express, PostgreSQL & Docker
-⭐ If you found this project helpful, consider giving it a Star!
+☑ Employee Management Module
+☑ Asset Request & Approval Workflow
+☑ Asset Assignment & Return Module
+□ Appearance Settings Module (Dynamic Branding / Color Scheme via Database)
+👩‍💻 Author
+Maira Alam
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+<div align="center"> <b>❤️ Built with Node.js, Express, PostgreSQL & Docker</b><br> <i>⭐ If you found this project helpful, consider giving it a Star!</i> </div> ```
