@@ -8,14 +8,15 @@ const vendorRoutes = require('./routes/vendors');
 const categoryRoutes = require('./routes/categories');
 const locationRoutes = require('./routes/locations');
 const employeeRoutes = require('./routes/employees'); 
+const settingsRoutes = require('./routes/settings'); 
 
 require('dotenv').config();
 
 const app = express();
 
 // --- Middleware ---
-app.use(cors()); // Allows frontend to make requests
-app.use(express.json()); // Parses incoming JSON requests
+app.use(cors()); 
+app.use(express.json()); 
 
 // --- Swagger Documentation Setup ---
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
@@ -32,6 +33,11 @@ app.use('/api/vendors', vendorRoutes);
 app.use('/api/categories', categoryRoutes);
 app.use('/api/locations', locationRoutes);
 app.use('/api/employees', employeeRoutes);
+app.use('/api/assignments', require('./routes/assignments'));
+app.use('/api/requests', require('./routes/requests'));
+app.use('/api/settings', settingsRoutes); // 🌟 YEH NAYI LINE ADD KI HAI
+app.use(express.json({ limit: '50mb' })); // Pehle sirf app.use(express.json()) tha
+app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
 // --- Test Route for Database Connection ---
 app.get('/', async (req, res) => {

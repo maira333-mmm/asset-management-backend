@@ -1,2 +1,6 @@
+# Ignore frontend folder
+admin-panel/
+
+# Ignore node_modules
 node_modules/
 .env

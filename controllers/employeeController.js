@@ -27,7 +27,7 @@ exports.createEmployee = async (req, res) => {
       return res.status(400).json({ message: "Employee with this CNIC already exists" });
     }
 
-    // 4. Create User Account (status = Active by default)
+    // 4. Create User Account
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
     const newUser = await pool.query(
@@ -67,17 +67,35 @@ exports.createEmployee = async (req, res) => {
   }
 };
 
-// @desc    Get all employees
+// @desc    Get all employees (Admin sees all, Manager sees only their department)
 // @route   GET /api/employees
 exports.getAllEmployees = async (req, res) => {
   try {
-    const query = `
-      SELECT e.*, u.email, u.status 
+    const userRole = req.user.role;
+    const managerDeptId = req.user.department_id; // Department ID fetched from token
+
+    // Base query
+    let query = `
+      SELECT e.*, u.email, u.status, r.role_name 
       FROM employees e
       JOIN users u ON e.user_id = u.user_id
-      ORDER BY e.name ASC
+      LEFT JOIN user_roles ur ON u.user_id = ur.user_id
+      LEFT JOIN roles r ON ur.role_id = r.role_id
     `;
-    const allEmployees = await pool.query(query);
+    
+    let values = [];
+
+    // 🌟 Manager Filter: Only show employees from the manager's department
+    if (userRole === 'Manager') {
+      if (managerDeptId) {
+        query += ` WHERE e.department_id = $1`;
+        values.push(managerDeptId);
+      }
+    }
+
+    query += ` ORDER BY e.name ASC`;
+
+    const allEmployees = await pool.query(query, values);
     res.status(200).json(allEmployees.rows);
   } catch (err) {
     console.error("Error fetching employees:", err.message);
@@ -85,7 +103,7 @@ exports.getAllEmployees = async (req, res) => {
   }
 };
 
-// @desc    Update an employee
+// @desc    Update an employee (WITH ROLE UPDATE)
 // @route   PUT /api/employees/:id
 exports.updateEmployee = async (req, res) => {
   try {
@@ -109,21 +127,33 @@ exports.updateEmployee = async (req, res) => {
       return res.status(404).json({ message: "Employee not found" });
     }
 
-    // 2. Update Role (if changed)
+    // 2. Update Role
     if (role_name) {
       const empUserId = updatedEmployee.rows[0].user_id;
+      
+      // Find new role_id
       const roleResult = await pool.query('SELECT role_id FROM roles WHERE role_name = $1', [role_name]);
       
       if (roleResult.rows.length > 0) {
+        const newRoleId = roleResult.rows[0].role_id;
+        
+        // Delete existing roles for this user
         await pool.query('DELETE FROM user_roles WHERE user_id = $1', [empUserId]);
+        
+        // Insert new role
         await pool.query(
           'INSERT INTO user_roles (user_id, role_id) VALUES ($1, $2)',
-          [empUserId, roleResult.rows[0].role_id]
+          [empUserId, newRoleId]
         );
       }
     }
 
-    res.status(200).json({ message: "Employee updated successfully", data: updatedEmployee.rows[0] });
+    // 3. Return updated data with role_name
+    res.status(200).json({ 
+      message: "Employee updated successfully", 
+      data: { ...updatedEmployee.rows[0], role_name: role_name } 
+    });
+
   } catch (err) {
     console.error("Error updating employee:", err.message);
     res.status(500).json({ error: "Server Error" });
@@ -161,7 +191,7 @@ exports.updateEmployeeStatus = async (req, res) => {
   }
 };
 
-// @desc    Delete an employee (Hard delete - only if no records)
+// @desc    Delete an employee
 // @route   DELETE /api/employees/:id
 exports.deleteEmployee = async (req, res) => {
   try {
@@ -172,7 +202,6 @@ exports.deleteEmployee = async (req, res) => {
       return res.status(404).json({ message: "Employee not found" });
     }
 
-    // Check if employee has assignments or requests
     const assignments = await pool.query('SELECT 1 FROM asset_assignments WHERE employee_id = $1 LIMIT 1', [id]);
     const requests = await pool.query('SELECT 1 FROM asset_requests WHERE employee_id = $1 LIMIT 1', [id]);
 

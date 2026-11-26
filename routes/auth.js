@@ -44,12 +44,7 @@ const pool = require('../config/db');
  */
 router.post('/signup', 
   [
-    // 1. Email Validation
-    body('email')
-      .isEmail().withMessage('Please provide a valid email address')
-      .normalizeEmail(),
-      
-    // 2. Password Validation (8 chars, 1 uppercase, 1 number, 1 special char)
+    body('email').isEmail().withMessage('Please provide a valid email address').normalizeEmail(),
     body('password')
       .isLength({ min: 8 }).withMessage('Password must be at least 8 characters long')
       .matches(/[A-Z]/).withMessage('Password must contain at least one uppercase letter')
@@ -57,7 +52,6 @@ router.post('/signup',
       .matches(/[!@#$%^&*(),.?":{}|<>]/).withMessage('Password must contain at least one special character')
   ],
   async (req, res) => {
-    // Check if validation failed
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
       return res.status(400).json({ errors: errors.array() });
@@ -65,14 +59,11 @@ router.post('/signup',
 
     try {
       const { email, password } = req.body;
-
-      // Check if email already exists in DB
       const userExists = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
       if (userExists.rows.length > 0) {
         return res.status(400).json({ message: "User with this email already exists" });
       }
 
-      // Hash password and insert (default status = Active)
       const salt = await bcrypt.genSalt(10);
       const hashedPassword = await bcrypt.hash(password, salt);
       const newUser = await pool.query(
@@ -105,7 +96,7 @@ router.post('/signup',
  *             properties:
  *               email:
  *                 type: string
- *                 example: maira@test.com
+ *                 example: maira@techavenue.com
  *               password:
  *                 type: string
  *                 example: Admin@123
@@ -113,7 +104,7 @@ router.post('/signup',
  *       200:
  *         description: Logged in successfully, returns JWT token
  *       400:
- *         description: Invalid credentials
+ *         description: Invalid credentials or validation error
  *       403:
  *         description: Account suspended
  *       500:
@@ -122,28 +113,71 @@ router.post('/signup',
 router.post('/login', async (req, res) => {
   try {
     const { email, password } = req.body;
+    
     if (!email || !password) {
       return res.status(400).json({ message: "Email and password are required" });
     }
 
+    // 1. Check User
     const user = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
-    if (user.rows.length === 0) return res.status(400).json({ message: "Invalid credentials" });
+    if (user.rows.length === 0) {
+      return res.status(400).json({ message: "No account found with this email" });
+    }
 
+    // 2. Check Password
     const validPassword = await bcrypt.compare(password, user.rows[0].password_hash);
-    if (!validPassword) return res.status(400).json({ message: "Invalid credentials" });
+    if (!validPassword) {
+      return res.status(400).json({ message: "Incorrect password. Please try again." });
+    }
 
-    // ✅ Suspended account check
+    // 3. Check Suspended Account
     if (user.rows[0].status === 'Suspended') {
       return res.status(403).json({ message: "Your account has been suspended. Contact Admin." });
     }
 
+    // 4. Get User Role
+    const roleQuery = await pool.query(
+      `SELECT r.role_name 
+       FROM user_roles ur 
+       JOIN roles r ON ur.role_id = r.role_id 
+       WHERE ur.user_id = $1`, 
+      [user.rows[0].user_id]
+    );
+    
+    const userRole = roleQuery.rows.length > 0 ? roleQuery.rows[0].role_name : 'Employee';
+
+    // 🌟 5. GET EMPLOYEE DETAILS (employee_id and department_id)
+    const empQuery = await pool.query(
+      `SELECT employee_id, department_id 
+       FROM employees 
+       WHERE user_id = $1`, 
+      [user.rows[0].user_id]
+    );
+    
+    const empDetails = empQuery.rows.length > 0 ? empQuery.rows[0] : {};
+
+    // 🌟 6. Generate Token (with Employee Details)
     const token = jwt.sign(
-      { user_id: user.rows[0].user_id, email: user.rows[0].email },
+      { 
+        user_id: user.rows[0].user_id, 
+        email: user.rows[0].email, 
+        role: userRole,
+        employee_id: empDetails.employee_id || null,
+        department_id: empDetails.department_id || null
+      },
       process.env.JWT_SECRET,
       { expiresIn: "1h" }
     );
 
-    res.status(200).json({ message: "Logged in successfully", token });
+    // 🌟 7. Send Token and Details in Response
+    res.status(200).json({ 
+      message: "Logged in successfully", 
+      token: token,
+      role: userRole,
+      employee_id: empDetails.employee_id || null,
+      department_id: empDetails.department_id || null
+    });
+    
   } catch (err) {
     console.error(err.message);
     res.status(500).json({ error: "Server Error" });

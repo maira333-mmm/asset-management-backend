@@ -8,12 +8,20 @@ const checkRole = require('../middleware/roleMiddleware');
  * @swagger
  * tags:
  *   name: Departments
- *   description: Organization Management APIs
+ *   description: Department Management APIs
  */
 
 /**
  * @swagger
  * /api/departments:
+ *   get:
+ *     summary: Get all departments
+ *     tags: [Departments]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: List of departments
  *   post:
  *     summary: Create a new department (Admin Only)
  *     tags: [Departments]
@@ -34,23 +42,35 @@ const checkRole = require('../middleware/roleMiddleware');
  *               location_id:
  *                 type: string
  *                 format: uuid
- *                 description: Optional Foreign Key to Location
  *     responses:
  *       201:
  *         description: Department created
- *       403:
- *         description: Forbidden (Requires Admin)
- * 
- *   get:
- *     summary: Get all departments
+ */
+router.get('/', authMiddleware, departmentController.getAllDepartments);
+router.post('/', authMiddleware, checkRole('Admin'), departmentController.createDepartment);
+
+/**
+ * @swagger
+ * /api/departments/{id}:
+ *   delete:
+ *     summary: Delete a department (Admin Only)
  *     tags: [Departments]
  *     security:
  *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
  *     responses:
  *       200:
- *         description: List of departments
+ *         description: Department deleted
+ *       400:
+ *         description: Cannot delete if employees or assets are assigned
+ *       404:
+ *         description: Department not found
  */
-router.post('/', authMiddleware, checkRole('Admin'), departmentController.createDepartment);
-router.get('/', authMiddleware, departmentController.getAllDepartments);
+router.delete('/:id', authMiddleware, checkRole('Admin'), departmentController.deleteDepartment);
 
 module.exports = router;
