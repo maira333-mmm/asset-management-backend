@@ -10,24 +10,38 @@ exports.createEmployee = async (req, res) => {
       email, password, department_id, role_name, manager_id 
     } = req.body;
 
-    // 1. Validation
     if (!name || !email || !password || !department_id || !cnic) {
       return res.status(400).json({ message: "Name, email, password, department, and CNIC are required" });
     }
 
-    // 2. Check if email already exists
     const userExists = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
     if (userExists.rows.length > 0) {
       return res.status(400).json({ message: "User with this email already exists" });
     }
 
-    // 3. Check if CNIC already exists
     const cnicExists = await pool.query('SELECT * FROM employees WHERE cnic = $1', [cnic]);
     if (cnicExists.rows.length > 0) {
       return res.status(400).json({ message: "Employee with this CNIC already exists" });
     }
 
-    // 4. Create User Account
+    // 🌟 NAYA LOGIC: Agar manager_id nahi diya gaya, toh us department ka Manager dhoondein
+    let finalManagerId = manager_id;
+
+    if (!finalManagerId) {
+      const managerQuery = await pool.query(`
+        SELECT e.employee_id 
+        FROM employees e
+        JOIN user_roles ur ON e.user_id = ur.user_id
+        JOIN roles r ON ur.role_id = r.role_id
+        WHERE e.department_id = $1 AND r.role_name = 'Manager'
+        LIMIT 1
+      `, [department_id]);
+
+      if (managerQuery.rows.length > 0) {
+        finalManagerId = managerQuery.rows[0].employee_id;
+      }
+    }
+
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
     const newUser = await pool.query(
@@ -36,7 +50,6 @@ exports.createEmployee = async (req, res) => {
     );
     const user_id = newUser.rows[0].user_id;
 
-    // 5. Assign Role
     const roleResult = await pool.query('SELECT role_id FROM roles WHERE role_name = $1', [role_name || 'Employee']);
     if (roleResult.rows.length > 0) {
       await pool.query(
@@ -45,12 +58,12 @@ exports.createEmployee = async (req, res) => {
       );
     }
 
-    // 6. Create Employee Profile
+    // Employee create karein with finalManagerId
     const newEmployee = await pool.query(
       `INSERT INTO employees 
       (name, contact, cnic, joining_date, designation, address, emergency_contact, department_id, user_id, manager_id) 
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING *`,
-      [name, contact, cnic, joining_date, designation, address || null, emergency_contact || null, department_id, user_id, manager_id || null]
+      [name, contact, cnic, joining_date, designation, address || null, emergency_contact || null, department_id, user_id, finalManagerId || null]
     );
 
     res.status(201).json({ 
@@ -72,20 +85,20 @@ exports.createEmployee = async (req, res) => {
 exports.getAllEmployees = async (req, res) => {
   try {
     const userRole = req.user.role;
-    const managerDeptId = req.user.department_id; // Department ID fetched from token
+    const managerDeptId = req.user.department_id; 
 
-    // Base query
     let query = `
-      SELECT e.*, u.email, u.status, r.role_name 
+      SELECT e.*, u.email, u.status, r.role_name, 
+             m.name as manager_name, m.designation as manager_designation
       FROM employees e
       JOIN users u ON e.user_id = u.user_id
       LEFT JOIN user_roles ur ON u.user_id = ur.user_id
       LEFT JOIN roles r ON ur.role_id = r.role_id
+      LEFT JOIN employees m ON e.manager_id = m.employee_id
     `;
     
     let values = [];
 
-    // 🌟 Manager Filter: Only show employees from the manager's department
     if (userRole === 'Manager') {
       if (managerDeptId) {
         query += ` WHERE e.department_id = $1`;
@@ -103,7 +116,7 @@ exports.getAllEmployees = async (req, res) => {
   }
 };
 
-// @desc    Update an employee (WITH ROLE UPDATE)
+// @desc    Update an employee
 // @route   PUT /api/employees/:id
 exports.updateEmployee = async (req, res) => {
   try {
@@ -113,7 +126,6 @@ exports.updateEmployee = async (req, res) => {
       department_id, role_name, manager_id 
     } = req.body;
 
-    // 1. Update Employee Profile
     const updatedEmployee = await pool.query(
       `UPDATE employees 
        SET name = $1, contact = $2, cnic = $3, joining_date = $4, 
@@ -127,20 +139,13 @@ exports.updateEmployee = async (req, res) => {
       return res.status(404).json({ message: "Employee not found" });
     }
 
-    // 2. Update Role
     if (role_name) {
       const empUserId = updatedEmployee.rows[0].user_id;
-      
-      // Find new role_id
       const roleResult = await pool.query('SELECT role_id FROM roles WHERE role_name = $1', [role_name]);
       
       if (roleResult.rows.length > 0) {
         const newRoleId = roleResult.rows[0].role_id;
-        
-        // Delete existing roles for this user
         await pool.query('DELETE FROM user_roles WHERE user_id = $1', [empUserId]);
-        
-        // Insert new role
         await pool.query(
           'INSERT INTO user_roles (user_id, role_id) VALUES ($1, $2)',
           [empUserId, newRoleId]
@@ -148,7 +153,6 @@ exports.updateEmployee = async (req, res) => {
       }
     }
 
-    // 3. Return updated data with role_name
     res.status(200).json({ 
       message: "Employee updated successfully", 
       data: { ...updatedEmployee.rows[0], role_name: role_name } 

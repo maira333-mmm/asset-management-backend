@@ -38,6 +38,7 @@ app.use('/api/requests', require('./routes/requests'));
 app.use('/api/settings', settingsRoutes); // 🌟 YEH NAYI LINE ADD KI HAI
 app.use(express.json({ limit: '50mb' })); // Pehle sirf app.use(express.json()) tha
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
+app.use('/api/returns', require('./routes/returns'));
 
 // --- Test Route for Database Connection ---
 app.get('/', async (req, res) => {
