@@ -13,6 +13,7 @@ services:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+      # Make sure this is a FILE, not a folder
       - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql
 
   backend:
@@ -27,10 +28,12 @@ services:
       - PORT=5000
       - DB_USER=postgres
       - DB_PASSWORD=admin123
-      - DB_HOST=db          # ✅ CHANGED: Docker service name
+      - DB_HOST=db
       - DB_PORT=5432
       - DB_NAME=asset_management_db
       - JWT_SECRET=super_secret_key_123
+    # 🌟 YEH LINE ADD KAREIN (Nodemon error fix)
+    command: npm start
     volumes:
       - .:/app
       - /app/node_modules
