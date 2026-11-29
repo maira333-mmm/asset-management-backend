@@ -1,0 +1,24 @@
+@import url('https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=Newsreader:opsz,wght@6..72,400;6..72,500;6..72,600;6..72,700&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: 'Instrument Sans', sans-serif;
+  --font-serif: 'Newsreader', serif;
+}
+
+:root {
+  --primary-color: #1F3049;
+  --accent-color: #C9A15B;
+  --bg-color: #F4F5F7;
+  --logo-url: url('/pic.jpg'); /* 🌟 Default Image Variable */
+}
+
+body {
+  background-color: var(--bg-color);
+  color: #1A2233;
+  font-family: 'Instrument Sans', sans-serif;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: 'Newsreader', serif;
+}
